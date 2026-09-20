@@ -1,5 +1,81 @@
 # ios-simulator-automation
 
+**English** | [日本語](#日本語)
+
+A Claude skill for driving and verifying the iOS Simulator from the command line and MCP.
+
+Several tools can drive the simulator, and **among tools that nominally do the same thing, some work and some do not**. Worse, several of them return success while nothing actually happens. This skill sorts out which one to reach for.
+
+At its center is the idea of **keeping track of why a tool was chosen**. If you cannot tell whether you are avoiding something because it is broken or because the other path is the proper one, you have no way to revisit the choice once the layer underneath is fixed. A guide that only lists the steps goes stale at that point.
+
+The other axis is **whether the path goes through Device Hub**. Device Hub takes over the screen and stops your work, so if there is a direct route, use it. Conversely, four operations can only be done in Device Hub, and those have to be handed to a human. Knowing that boundary up front saves rework.
+
+## Supported versions
+
+**Xcode 27.0 and 27.1 beta / iOS 27.0 and 27.1 simulators / macOS 26.**
+
+**This does not apply to Xcode 26 or earlier**, because Xcode 27 replaced the foundation itself.
+
+`Simulator.app` is gone, replaced by `Device Hub`. Where Simulator opened a separate window per device, Device Hub puts the device list on the left and its detail on the right in a single window, and **handles simulators and physical devices on the same screen**.
+
+That consolidation determines almost everything in this skill.
+
+- `devicectl`, which used to be the CLI for physical devices, was extended to cover simulators as well. **This is why rotation, which `simctl` lacks, exists in `devicectl`.**
+- At the same time, existing tools that relied on `Simulator.app`'s path or assumptions broke across the board. The several "returns success but has no effect" failures are likely a consequence of this transition (Apple has not said so — that is our inference).
+
+References: [Michael Tsai — Xcode 27's Device Hub](https://mjtsai.com/blog/2026/06/25/xcode-27s-device-hub/) / [Bitrise — WWDC 2026: Device Hub and what it means for CI/CD](https://bitrise.io/blog/post/wwdc-2026-device-hub-and-what-it-means-for-ci-cd)
+
+## What it covers
+
+- **Choosing a tool** — for tap, screenshot, rotation, element coordinates and state setup: what to use, why, whether it is the proper path or a workaround, and when to revisit it
+- **What not to use** — the paths that report success without doing anything, and why
+- **Key input** — it does not get through on any path, and how to proceed given that `keyboardShortcut` cannot be verified automatically
+- **Coordinate pitfalls** — the hierarchy comes back for every app, landscape orientation, the inner display of a foldable, orientation resetting on reboot
+- **Operations that require Device Hub** — the four with no command equivalent: key input, folding and unfolding a foldable, clicking its inner display, and the width of a resizable window
+- **Verification habits** — do not trust return values, put the value you read back into the report, measure anything you cannot explain with throwaway instrumentation
+
+## Layout
+
+```
+SKILL.md   Everything. No reference files
+```
+
+## Installation
+
+Copy it into Claude's skills directory.
+
+```bash
+cp -R ios-simulator-automation-skill ~/.claude/skills/ios-simulator-automation
+```
+
+To use it in a single project:
+
+```bash
+cp -R ios-simulator-automation-skill <project>/.claude/skills/ios-simulator-automation
+```
+
+It comes into play when you want to check a screen in the simulator, taps are not landing, element coordinates cannot be read, you want to rotate the device, UI automation is flaky, or you want to get by without opening Device Hub.
+
+## Sources
+
+**Everything here was measured.** None of it was copied out of documentation.
+
+Verified on 2026-09-20, in the environment listed under Supported versions above. Three kinds of device were covered — iPhone, iPad and a foldable — and the same operations were tried through several paths (Claude's simulator panel, xcodebuildmcp, AXe, `simctl`, `devicectl`, Xcode's MCP), with screenshots confirming which ones landed and which did not.
+
+Note that **Device Hub was running the whole time**. Quitting Device Hub also shuts down the simulators, so whether these things work with it closed was not checked.
+
+Because of that, **what works depends on your environment**. AXe's behavior in particular differed by distribution channel even at the same 1.8.0. The skill itself documents that difference and the reason for it.
+
+## License
+
+MIT
+
+---
+
+# 日本語
+
+[English](#ios-simulator-automation) | **日本語**
+
 iOS シミュレータをコマンドと MCP で操作・検証するための Claude スキルです。
 
 シミュレータを動かす道具は複数あり、**同じことができる道具でも、動くものと動かないものが混ざっています**。しかも「成功」と返しておきながら実際には何も起きない、という種類の失敗が複数あります。このスキルは、その中でどれを使うかを整理したものです。
