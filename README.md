@@ -12,7 +12,7 @@ The other axis is **whether the path goes through Device Hub**. Device Hub takes
 
 ## Supported versions
 
-**Xcode 27.0 and 27.1 beta / iOS 27.0 and 27.1 simulators / macOS 26.**
+**Xcode 27.0 and 27.1 RC / iOS 27.0 and 27.1 simulators / macOS 26.** The tables were verified with Xcode 27.0 and 27.1 beta; not yet re-checked on the RC.
 
 **This does not apply to Xcode 26 or earlier**, because Xcode 27 replaced the foundation itself.
 
@@ -60,7 +60,7 @@ It comes into play when you want to check a screen in the simulator, taps are no
 
 **Everything here was measured.** None of it was copied out of documentation.
 
-Verified on 2026-09-20, in the environment listed under Supported versions above. Three kinds of device were covered — iPhone, iPad and a foldable — and the same operations were tried through several paths (Claude's simulator panel, mobilebuildmcp, AXe, `simctl`, `devicectl`, Xcode's MCP), with screenshots confirming which ones landed and which did not.
+Verified on 2026-09-20, with Xcode 27.0 and 27.1 beta. Three kinds of device were covered — iPhone, iPad and a foldable — and the same operations were tried through several paths (Claude's simulator panel, mobilebuildmcp, AXe, `simctl`, `devicectl`, Xcode's MCP), with screenshots confirming which ones landed and which did not.
 
 Note that **Device Hub was running the whole time**. Quitting Device Hub also shuts down the simulators, so whether these things work with it closed was not checked.
 
@@ -86,7 +86,7 @@ iOS シミュレータをコマンドと MCP で操作・検証するための C
 
 ## 対象バージョン
 
-**Xcode 27.0 および 27.1 beta / iOS 27.0 / 27.1 のシミュレータ / macOS 26。**
+**Xcode 27.0 / 27.1 RC、iOS 27.0 / 27.1 のシミュレータ、macOS 26。** 表の実測は Xcode 27.0 と 27.1 beta で、RC ではまだ再確認していません。
 
 **Xcode 26 以前には当てはまりません。** Xcode 27 で土台ごと入れ替わっているためです。
 
@@ -134,7 +134,7 @@ cp -R ios-simulator-automation-skill <project>/.claude/skills/ios-simulator-auto
 
 **すべて実測です。** ドキュメントからの引き写しではありません。
 
-検証時期は 2026-09-20、環境は上記の「対象バージョン」のとおりです。対象は iPhone・iPad・折りたたみ端末の3種類で、同じ操作を複数の経路（Claude のシミュレータパネル、mobilebuildmcp、AXe、`simctl`、`devicectl`、Xcode の MCP）から試し、届いたものと届かなかったものを撮影して確かめています。
+検証時期は 2026-09-20、環境は Xcode 27.0 と 27.1 beta です。対象は iPhone・iPad・折りたたみ端末の3種類で、同じ操作を複数の経路（Claude のシミュレータパネル、mobilebuildmcp、AXe、`simctl`、`devicectl`、Xcode の MCP）から試し、届いたものと届かなかったものを撮影して確かめています。
 
 なお**検証中は Device Hub が常に起動していました。** Device Hub を終了するとシミュレータも一緒に落ちるため、閉じた状態での可否は確かめていません。
 
