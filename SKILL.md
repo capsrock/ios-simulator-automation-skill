@@ -1,6 +1,6 @@
 ---
 name: ios-simulator-automation
-description: Xcode 27 の iOS シミュレータをコマンドと MCP で操作・検証するときの道具の選び方と落とし穴。Device Hub を開かずに済む経路と、開くしかない操作の区別。タップ・スワイプ・撮影・回転・要素ツリーの取得、状態の作り込み、xcodebuildmcp / axe / simctl / devicectl / Device Hub / Xcode MCP の使い分けを扱う。シミュレータで画面を確認したい、タップが効かない、要素の座標が取れない、回転させたい、スクリーンショットを撮りたい、UI 自動操作が不安定、Device Hub を開かずに済ませたい、といったときに使う。
+description: Xcode 27 の iOS シミュレータをコマンドと MCP で操作・検証するときの道具の選び方と落とし穴。Device Hub を開かずに済む経路と、開くしかない操作の区別。タップ・スワイプ・撮影・回転・要素ツリーの取得、状態の作り込み、mobilebuildmcp / axe / simctl / devicectl / Device Hub / Xcode MCP の使い分けを扱う。シミュレータで画面を確認したい、タップが効かない、要素の座標が取れない、回転させたい、スクリーンショットを撮りたい、UI 自動操作が不安定、Device Hub を開かずに済ませたい、といったときに使う。
 ---
 
 # iOS シミュレータの自動操作
@@ -69,20 +69,20 @@ Device Hub を終了するとシミュレータも一緒に落ちるため、閉
 | 外観・文字サイズ・コントラスト | `xcrun simctl ui` | 直接 | 正規の手段 | 正道 | — |
 | 画面の状態づくり | アプリの UserDefaults を直接書く | 直接 | UI 自動操作は取りこぼす。シートが開かない・別の項目に当たる | **回避策** | 入力系が安定したら |
 | キー入力 | 人に押してもらう | **Device Hub** | どの経路も届かない（下記） | **回避策** | axe 更新時、iOS / Xcode 更新時 |
-| 折りたたみ端末の開閉 | 人に開いてもらう | **Device Hub** | コマンドに対応が無い | **回避策** | `devicectl` にサブコマンドが増えたら |
-| 折りたたみ端末の内側へのタップ | 人に押してもらう | **Device Hub** | どの経路も届かない | **回避策** | axe 更新時 |
+| 折りたたみ端末の開閉・半開き | `duoctl open` / `close` / `half` / `hinge` | 直接 | iPhone Duo 用の CLI | 正道 | — |
+| 折りたたみ端末の内側へのタップ | `duoctl tap` / `long-press` / `swipe`（`--label` / `--id` 可） | 直接 | axe・パネルのタッチは内側に届かない | 正道 | — |
 | 可変ウインドウの幅 | 人に操作してもらう | **Device Hub** | `devicectl device appResize` が非対応で弾かれる | **回避策** | Resizable のデバイスタイプが入ったら再試験 |
 
 ## 使ってはいけないもの
 
-### xcodebuildmcp の `tap` / `swipe` / `key_press`
+### mobilebuildmcp の `tap` / `swipe` / `key_press`
 
 **「成功」と返しても効かない。** 返り値を信用しない。中身は同梱の `axe` を呼んでいるだけで、
 その axe が動いていないため。`snapshot_ui` / `describe-ui` が失敗するのも同じ根。
 
 ### 同梱の `bundled/axe`
 
-`/usr/local/lib/node_modules/xcodebuildmcp/bundled/axe` は `describe-ui` が失敗する。
+`/usr/local/lib/node_modules/mobilebuildmcp/bundled/axe` は `describe-ui` が失敗する。
 **Homebrew 版を使う。**
 
 ```bash
@@ -93,7 +93,7 @@ brew trust --formula cameroncooke/axe/axe && brew install axe
 版はどちらも 1.8.0 で同じ。brew 版だけ動くのは、`FBSimulatorControl` などのフレームワークを同梱し、
 インストール時にローカルで codesign されるため。**版を上げれば直るという話ではない。**
 
-`XCODEBUILDMCP_AXE_PATH` に brew 版を指すと xcodebuildmcp 側も差し替えられるが、
+`MOBILEBUILDMCP_AXE_PATH` に brew 版を指すと mobilebuildmcp 側も差し替えられるが、
 `axe tap` 自体が効かないので `tap` ツールは直らない。
 
 ### `axe tap`
@@ -109,7 +109,7 @@ brew trust --formula cameroncooke/axe/axe && brew install axe
 |---|---|
 | `axe key <keycode>` | 届かない |
 | `axe type "<text>"` | 届かない |
-| xcodebuildmcp `key_press` | 届かない（修飾キーも送れない） |
+| mobilebuildmcp `key_press` | 届かない（修飾キーも送れない） |
 | Xcode MCP `sender keyboard kbd <text>` | 届かない |
 
 入力欄にフォーカスを置いて1文字送っても入らないので、**アプリ側の実装の問題ではない。**
@@ -123,20 +123,18 @@ brew trust --formula cameroncooke/axe/axe && brew install axe
 - **`describe-ui` は画面上の全アプリの階層を返す。** 裏のアプリの座標を拾って誤タップしやすい。
   目的のアプリに絞ってから読む
 - **横向きではパネルのタップが届かない。** `axe touch` を使う
-- **折りたたみ端末の内側ディスプレイには、どの経路のタップも届かない。** Device Hub 越しのクリックだけ。
-  `describe-ui` は内側の座標空間で正しい値を返すのに、注入したタッチは届かない
+- **折りたたみ端末の内側ディスプレイには、axe とパネルのタッチは届かない。** `duoctl tap` を使う。
+  `describe-ui` は内側の座標空間で正しい値を返すのに、axe で注入したタッチは届かない
 - **再起動すると向きは縦に戻る。** ユーザーが回したあとに勝手に `shutdown` / `boot` をしない
 
 ## Device Hub を開くしかない操作
 
-コマンドに対応が無いのは次の4つだけ。ほかは全部、直接叩ける経路がある。
+コマンドに対応が無いのは次の2つだけ。ほかは全部、直接叩ける経路がある（iPhone Duo の開閉と内側へのタップは `duoctl`）。
 
 - **キーボードの接続**（`Device > Keyboard`）**とキー入力**
-- **折りたたみ端末の開閉**
 - **可変ウインドウ**（`Enter Resize Mode`）。`devicectl device appResize` は
   `Resizable App Management` 非対応で弾かれ、名前に `Resizable` を含むディスプレイが要る。
   そのデバイスタイプが入っていない環境では使えない
-- **折りたたみ端末の内側へのクリック**
 
 いずれも人にやってもらうことになる。**画面まで自分で進めてから、押す操作だけを頼む。**
 何度も往復させない。

@@ -8,7 +8,7 @@ Several tools can drive the simulator, and **among tools that nominally do the s
 
 At its center is the idea of **keeping track of why a tool was chosen**. If you cannot tell whether you are avoiding something because it is broken or because the other path is the proper one, you have no way to revisit the choice once the layer underneath is fixed. A guide that only lists the steps goes stale at that point.
 
-The other axis is **whether the path goes through Device Hub**. Device Hub takes over the screen and stops your work, so if there is a direct route, use it. Conversely, four operations can only be done in Device Hub, and those have to be handed to a human. Knowing that boundary up front saves rework.
+The other axis is **whether the path goes through Device Hub**. Device Hub takes over the screen and stops your work, so if there is a direct route, use it. Conversely, two operations can only be done in Device Hub, and those have to be handed to a human. Knowing that boundary up front saves rework.
 
 ## Supported versions
 
@@ -31,7 +31,7 @@ References: [Michael Tsai — Xcode 27's Device Hub](https://mjtsai.com/blog/202
 - **What not to use** — the paths that report success without doing anything, and why
 - **Key input** — it does not get through on any path, and how to proceed given that `keyboardShortcut` cannot be verified automatically
 - **Coordinate pitfalls** — the hierarchy comes back for every app, landscape orientation, the inner display of a foldable, orientation resetting on reboot
-- **Operations that require Device Hub** — the four with no command equivalent: key input, folding and unfolding a foldable, clicking its inner display, and the width of a resizable window
+- **Operations that require Device Hub** — the two with no command equivalent: key input and the width of a resizable window. Folding, unfolding and tapping the inner display of iPhone Duo go through [`duoctl`](https://github.com/skarol/duoctl)
 - **Verification habits** — do not trust return values, put the value you read back into the report, measure anything you cannot explain with throwaway instrumentation
 
 ## Layout
@@ -60,7 +60,7 @@ It comes into play when you want to check a screen in the simulator, taps are no
 
 **Everything here was measured.** None of it was copied out of documentation.
 
-Verified on 2026-09-20, in the environment listed under Supported versions above. Three kinds of device were covered — iPhone, iPad and a foldable — and the same operations were tried through several paths (Claude's simulator panel, xcodebuildmcp, AXe, `simctl`, `devicectl`, Xcode's MCP), with screenshots confirming which ones landed and which did not.
+Verified on 2026-09-20, in the environment listed under Supported versions above. Three kinds of device were covered — iPhone, iPad and a foldable — and the same operations were tried through several paths (Claude's simulator panel, mobilebuildmcp, AXe, `simctl`, `devicectl`, Xcode's MCP), with screenshots confirming which ones landed and which did not.
 
 Note that **Device Hub was running the whole time**. Quitting Device Hub also shuts down the simulators, so whether these things work with it closed was not checked.
 
@@ -82,7 +82,7 @@ iOS シミュレータをコマンドと MCP で操作・検証するための C
 
 中心にあるのは、**なぜその道具を選んだのかを区別して持っておく**という考え方です。壊れているから避けているのか、それが本来の道なのかが分からないと、下の層が直ったときに見直せません。手段を並べただけの手順書は、そこで古くなります。
 
-もう一つの軸が **Device Hub 経由かどうか**です。Device Hub は画面を占有して作業を止めるので、直接叩ける経路があるならそちらを使います。逆に、どうしても Device Hub でしかできない操作が4つあり、そこは人に頼むしかありません。この境目を先に知っておくと、手戻りが減ります。
+もう一つの軸が **Device Hub 経由かどうか**です。Device Hub は画面を占有して作業を止めるので、直接叩ける経路があるならそちらを使います。逆に、どうしても Device Hub でしかできない操作が2つあり、そこは人に頼むしかありません。この境目を先に知っておくと、手戻りが減ります。
 
 ## 対象バージョン
 
@@ -105,7 +105,7 @@ iOS シミュレータをコマンドと MCP で操作・検証するための C
 - **使ってはいけないもの** — 成功と返して効かない経路と、その理由
 - **キー入力** — どの経路からも届かないこと。`keyboardShortcut` の検証を自動化できない前提での進め方
 - **座標の落とし穴** — 全アプリの階層が返る、横向き、折りたたみ端末の内側ディスプレイ、再起動で向きが戻る
-- **Device Hub を開くしかない操作** — コマンドに対応が無い4つ。キー入力、折りたたみ端末の開閉と内側へのクリック、可変ウインドウの幅
+- **Device Hub を開くしかない操作** — コマンドに対応が無い2つ。キー入力と可変ウインドウの幅。iPhone Duo の開閉と内側へのタップは [`duoctl`](https://github.com/skarol/duoctl) で行う
 - **確認の作法** — 返り値を信用しない、読み出した値を報告に書く、説明できない数値は一時計測コードで実測する
 
 ## 構成
@@ -134,7 +134,7 @@ cp -R ios-simulator-automation-skill <project>/.claude/skills/ios-simulator-auto
 
 **すべて実測です。** ドキュメントからの引き写しではありません。
 
-検証時期は 2026-09-20、環境は上記の「対象バージョン」のとおりです。対象は iPhone・iPad・折りたたみ端末の3種類で、同じ操作を複数の経路（Claude のシミュレータパネル、xcodebuildmcp、AXe、`simctl`、`devicectl`、Xcode の MCP）から試し、届いたものと届かなかったものを撮影して確かめています。
+検証時期は 2026-09-20、環境は上記の「対象バージョン」のとおりです。対象は iPhone・iPad・折りたたみ端末の3種類で、同じ操作を複数の経路（Claude のシミュレータパネル、mobilebuildmcp、AXe、`simctl`、`devicectl`、Xcode の MCP）から試し、届いたものと届かなかったものを撮影して確かめています。
 
 なお**検証中は Device Hub が常に起動していました。** Device Hub を終了するとシミュレータも一緒に落ちるため、閉じた状態での可否は確かめていません。
 
