@@ -124,6 +124,7 @@ brew trust --formula cameroncooke/axe/axe && brew install axe
   目的のアプリに絞ってから読む
 - **横向きではパネルのタップが届かない。** `axe touch` を使う
 - **折りたたみ端末の内側ディスプレイには、axe とパネルのタッチは届かない。** `duoctl tap` を使う。
+  - `duoctl tap` も、開いた内側で `duoctl-helper: no touchscreen for display <ID>` と出て失敗することがある（Duo シミュレータ iOS 27.1、2026-10-16。原因は未調査）。そのときは `duoctl close` で閉じて外側でタップして画面を進め、開いてから `duoctl screenshot` で内側を確かめる。場面を起動引数やディープリンクで開ける画面はそちらを使う。**axe で届かなかっただけで「内側には届かない」と言わない。**
   `describe-ui` は内側の座標空間で正しい値を返すのに、axe で注入したタッチは届かない
 - **再起動すると向きは縦に戻る。** ユーザーが回したあとに勝手に `shutdown` / `boot` をしない
 
