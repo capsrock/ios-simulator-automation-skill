@@ -1,5 +1,7 @@
 # ios-simulator-automation
 
+![ios-simulator-automation — Drive and verify the iOS Simulator without opening Device Hub](assets/social-card.png)
+
 **English** | [日本語](#日本語)
 
 A Claude skill for driving and verifying the iOS Simulator from the command line and MCP.
