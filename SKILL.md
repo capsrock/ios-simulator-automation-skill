@@ -11,7 +11,7 @@ description: Xcode 27 の iOS シミュレータをコマンドと MCP で操作
 
 ## 対象バージョン
 
-**Xcode 27.0 / 27.1 RC、iOS 27.0 / 27.1 のシミュレータ、macOS 26**。表の実測は 2026-09-20（Xcode 27.0 と 27.1 beta）。RC では再確認していない。
+**Xcode 27.0 / 27.1、iOS 27.0 / 27.1 のシミュレータ、macOS 26**。表の実測は 2026-09-20（iPhone Duo の項目は 2026-10-16）。
 
 **Xcode 26 以前には当てはまらない。** 下の背景のとおり、土台ごと入れ替わっている。
 
@@ -24,7 +24,7 @@ description: Xcode 27 の iOS シミュレータをコマンドと MCP で操作
 **Xcode 27 で `Simulator.app` が廃止され、`Device Hub` に置き換わった。**
 ファイルの位置も `<Xcode>.app/Contents/Developer/Applications/Simulator.app` から
 `<Xcode>.app/Contents/Applications/DeviceHub.app` へ移った（bundle id は `com.apple.dt.Devices`）。
-27.0 / 27.1 beta とも旧パスに `Simulator.app` は存在しない。
+27.0 / 27.1 とも旧パスに `Simulator.app` は存在しない。
 
 置き換えの中身は**統合**である。Simulator は端末ごとに別ウインドウを開く作りだったが、
 Device Hub は左に端末の一覧、右にその詳細という1ウインドウにまとめ、
