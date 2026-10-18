@@ -56,22 +56,33 @@ Device Hub を終了するとシミュレータも一緒に落ちるため、閉
 
 ## 道具の選び方
 
-「経路」は、Device Hub を前面に出して人が操作する必要があるかどうか。
+**⚠ が付いているものは回避策**。本来の道が壊れているので代わりに使っている。
+いつ見直すかは表の下に書いた。印の無いものは正道で、見直す必要はない。
 
-| やりたいこと | 使うもの | 経路 | なぜ | 種別 | 見直す条件 |
-|---|---|---|---|---|---|
-| タップ（縦向き） | Claude のシミュレータパネル `mcp__Claude_Code_iOS_Simulator__control` の `tap` | 直接 | 確実に効く。手数が少ない | 正道 | — |
-| タップ（横向き・確実さ優先） | `axe touch -x -y --down --up` | 直接 | パネルのタップが横向きで届かない。`axe tap` は効かない | **回避策** | axe が上がったら `tap` と横向きのパネルを再試験 |
-| 要素の座標・ラベル | `axe describe-ui` | 直接 | 座標を取る唯一の手段。画像から目測するより正確 | 正道 | — |
-| 撮影 | `xcrun simctl io <UDID> screenshot` | 直接 | パネルの `screenshot` が `captureFailed` を返す | **回避策** | パネル側が直ったら |
-| 回転 | `xcrun devicectl device orientation set` | 直接 | `simctl` に回転が無い。Xcode 27 の正規の手段 | 正道 | — |
-| 回転＋タップ＋階層をまとめて | Xcode MCP の `DeviceInteractionSynthesize` | 直接 | 1回でスクリーンショットと hitPoint 付き階層が返る | 正道 | — |
-| 外観・文字サイズ・コントラスト | `xcrun simctl ui` | 直接 | 正規の手段 | 正道 | — |
-| 画面の状態づくり | アプリの UserDefaults を直接書く | 直接 | UI 自動操作は取りこぼす。シートが開かない・別の項目に当たる | **回避策** | 入力系が安定したら |
-| キー入力 | 人に押してもらう | **Device Hub** | どの経路も届かない（下記） | **回避策** | axe 更新時、iOS / Xcode 更新時 |
-| 折りたたみ端末の開閉・半開き | `duoctl open` / `close` / `half` / `hinge` | 直接 | iPhone Duo 用の CLI | 正道 | — |
-| 折りたたみ端末の内側へのタップ | `duoctl tap` / `long-press` / `swipe`（`--label` / `--id` 可） | 直接 | axe・パネルのタッチは内側に届かない | 正道 | — |
-| 可変ウインドウの幅 | 人に操作してもらう | **Device Hub** | `devicectl device appResize` が非対応で弾かれる | **回避策** | Resizable のデバイスタイプが入ったら再試験 |
+| やりたいこと | 使うもの | なぜ |
+|---|---|---|
+| タップ（縦向き） | Claude のシミュレータパネル `mcp__Claude_Code_iOS_Simulator__control` の `tap` | 確実に効く。手数が少ない |
+| タップ（横向き・確実さ優先） | ⚠ `axe touch -x -y --down --up` | パネルのタップが横向きで届かない。`axe tap` は効かない |
+| 要素の座標・ラベル | `axe describe-ui` | 座標を取る唯一の手段。画像から目測するより正確 |
+| 撮影 | ⚠ `xcrun simctl io <UDID> screenshot` | パネルの `screenshot` が `captureFailed` を返す |
+| 回転 | `xcrun devicectl device orientation set` | `simctl` に回転が無い。Xcode 27 の正規の手段 |
+| 回転＋タップ＋階層をまとめて | Xcode MCP の `DeviceInteractionSynthesize` | 1回でスクリーンショットと hitPoint 付き階層が返る |
+| 外観・文字サイズ・コントラスト | `xcrun simctl ui` | 正規の手段 |
+| 画面の状態づくり | ⚠ アプリの UserDefaults を直接書く | UI 自動操作は取りこぼす。シートが開かない・別の項目に当たる |
+| キー入力 | ⚠ **Device Hub** で人に押してもらう | どの経路も届かない（下記） |
+| 折りたたみ端末の開閉・半開き | `duoctl open` / `close` / `half` / `hinge` | iPhone Duo 用の CLI |
+| 折りたたみ端末の内側へのタップ | `duoctl tap` / `long-press` / `swipe`（`--label` / `--id` 可） | axe・パネルのタッチは内側に届かない |
+| 可変ウインドウの幅 | ⚠ **Device Hub** で人に操作してもらう | `devicectl device appResize` が非対応で弾かれる |
+
+**Device Hub** と書いた2つだけは、GUI を前面に出して人に操作してもらう。残りは直接叩ける。
+
+回避策を見直す条件:
+
+- **横向きのタップ** — axe が上がったら `axe tap` と横向きのパネルを再試験する
+- **撮影** — パネルの `screenshot` が直ったら戻す
+- **画面の状態づくり** — 入力系が安定したら UI 操作に戻す
+- **キー入力** — axe 更新時、iOS / Xcode 更新時に試し直す
+- **可変ウインドウの幅** — `Resizable` のデバイスタイプが入ったら再試験する
 
 ## 使ってはいけないもの
 
@@ -124,8 +135,12 @@ brew trust --formula cameroncooke/axe/axe && brew install axe
   目的のアプリに絞ってから読む
 - **横向きではパネルのタップが届かない。** `axe touch` を使う
 - **折りたたみ端末の内側ディスプレイには、axe とパネルのタッチは届かない。** `duoctl tap` を使う。
-  - `duoctl tap` も、開いた内側で `duoctl-helper: no touchscreen for display <ID>` と出て失敗することがある（Duo シミュレータ iOS 27.1、2026-10-16。原因は未調査）。そのときは `duoctl close` で閉じて外側でタップして画面を進め、開いてから `duoctl screenshot` で内側を確かめる。場面を起動引数やディープリンクで開ける画面はそちらを使う。**axe で届かなかっただけで「内側には届かない」と言わない。**
-  `describe-ui` は内側の座標空間で正しい値を返すのに、axe で注入したタッチは届かない
+  `describe-ui` は内側の座標空間で正しい値を返すのに、axe で注入したタッチだけが届かない
+  - `duoctl tap` も、開いた内側で `duoctl-helper: no touchscreen for display <ID>` と出て
+    失敗することがある（Duo シミュレータ iOS 27.1、2026-10-16。原因は未調査）
+  - そのときは `duoctl close` で閉じ、外側でタップして画面を進めてから開き、
+    `duoctl screenshot` で内側を確かめる。起動引数やディープリンクで開ける画面はそちらを使う
+  - **axe で届かなかっただけで「内側には届かない」と言わない。**
 - **再起動すると向きは縦に戻る。** ユーザーが回したあとに勝手に `shutdown` / `boot` をしない
 
 ## Device Hub を開くしかない操作
