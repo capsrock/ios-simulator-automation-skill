@@ -1,6 +1,6 @@
 ---
 name: ios-simulator-automation
-description: Xcode 27 の iOS シミュレータをコマンドと MCP で操作・検証するときの道具の選び方と落とし穴。Device Hub を開かずに済む経路と、開くしかない操作の区別。タップ・スワイプ・撮影・回転・要素ツリーの取得、状態の作り込み、mobilebuildmcp / axe / simctl / devicectl / Device Hub / Xcode MCP の使い分けを扱う。シミュレータで画面を確認したい、タップが効かない、要素の座標が取れない、回転させたい、スクリーンショットを撮りたい、UI 自動操作が不安定、Device Hub を開かずに済ませたい、といったときに使う。
+description: Xcode 27.2 以降の iOS シミュレータをコマンドと MCP で操作・検証するときの道具の選び方と落とし穴。Device Hub を開かずに済ませる方法。タップ・文字とキーの入力・キーボードショートカット・撮影・回転・要素ツリーの取得・可変ウインドウの幅・iPhone Duo の開閉と内側へのタップ・状態の作り込み、Claude のシミュレータパネル / AXe / simctl / devicectl / mobilebuildmcp / Xcode MCP の使い分けを扱う。シミュレータで画面を確認したい、タップが効かない、要素の座標が取れない、キー入力やショートカットを試したい、回転させたい、ウインドウの幅を変えたい、スクリーンショットを撮りたい、UI 自動操作が不安定、Device Hub を開かずに済ませたい、といったときに使う。
 ---
 
 # iOS シミュレータの自動操作
@@ -11,160 +11,46 @@ description: Xcode 27 の iOS シミュレータをコマンドと MCP で操作
 
 ## 対象バージョン
 
-**Xcode 27.1 以降、iOS 27.1 以降のシミュレータ、macOS 27.2 以降**。表の実測は 2026-09-20（iPhone Duo の項目は 2026-10-16）。
+**Xcode 27.2 以降、iOS 27.2 以降のシミュレータ、AXe 2.1.1 以降（Homebrew 版）。**
+実測は 2026-11-21（Xcode 27.2、iOS 27.2、AXe 2.1.1。iPhone 18 Pro・iPhone Duo・iPad Pro 11-inch (M5) のシミュレータ）。
 
-**Xcode 26 以前には当てはまらない。** 下の背景のとおり、土台ごと入れ替わっている。
+**AXe は `axe --version` で版を確かめてから使う。** これより古い版では、タップとキー入力が成功と返すのに効かない。
 
 複数の Xcode を入れている場合、`xcrun` も MCP も **`xcode-select` が指すほう**を使う。
-別バージョンのランタイム（折りたたみ端末など）を触るときは、そのコマンドにだけ
-`DEVELOPER_DIR=...` を付ける。
+別バージョンのランタイムを触るときは、そのコマンドにだけ `DEVELOPER_DIR=...` を付ける。
 
-## 背景 — なぜ Xcode 27 で変わったのか
+## 最初に守ること
 
-**Xcode 27 で `Simulator.app` が廃止され、`Device Hub` に置き換わった。**
-ファイルの位置も `<Xcode>.app/Contents/Developer/Applications/Simulator.app` から
-`<Xcode>.app/Contents/Applications/DeviceHub.app` へ移った（bundle id は `com.apple.dt.Devices`）。
-27.0 / 27.1 とも旧パスに `Simulator.app` は存在しない。
-
-置き換えの中身は**統合**である。Simulator は端末ごとに別ウインドウを開く作りだったが、
-Device Hub は左に端末の一覧、右にその詳細という1ウインドウにまとめ、
-**シミュレータと実機を同じ画面で扱う。** 回転・撮影・ダークモード・文字サイズ・リサイズ・
-実機へのアプリ起動が、すべて同じ場所から行える。
-
-このスキルの内容は、ほぼすべてこの移行から導かれる。
-
-- **`devicectl` がシミュレータも扱うようになった。** `devicectl` はもともと実機用の CLI だったが、
-  統合に合わせて拡張された。**`simctl` に無い回転が `devicectl` にあるのはこのため。**
-  新しく何かをしたいときは、`simctl` だけでなく `devicectl` も見る
-- **既存のツールが軒並み壊れた。** `Simulator.app` のパスや前提に依存していたものが動かなくなり、
-  CI やテスト基盤が対応途中にある。このスキルに出てくる「成功と返すのに効かない」たぐいの失敗も、
-  **この移行期にあたっているためと考えられる**（Apple の説明があるわけではなく、こちらの推測）。
-  だからこそ、回避策には「いつ見直すか」を必ず書く
-
-参考: [Michael Tsai — Xcode 27's Device Hub](https://mjtsai.com/blog/2026/06/25/xcode-27s-device-hub/) /
-[Bitrise — WWDC 2026: Device Hub and what it means for CI/CD](https://bitrise.io/blog/post/wwdc-2026-device-hub-and-what-it-means-for-ci-cd)
-
-## Device Hub 経由かどうか
-
-これが最初の分かれ目になる。**Device Hub は画面を占有してユーザーの作業を止めるので、
-直接叩ける経路で済むならそちらを使う。**
-
-ただし前提が1つある。**ここに書いた検証はすべて Device Hub が起動している状態で行った。**
-Device Hub を終了するとシミュレータも一緒に落ちるため、閉じた状態での可否は確かめていない。
-実務上 Device Hub は常に起動しているので、区別が意味を持つのは「GUI を前面に出して人が操作するか」の
-一点だと考えてよい。
+- **Device Hub は開かない。** このスキルの操作は、すべて Device Hub を開かずにできる。Device Hub は画面を占有してユーザーの作業を止める。
+  実測は Device Hub を起動せず、`xcrun simctl boot` で起動したシミュレータで行った。
+  タップ・キー入力・ショートカット・撮影・回転・`describe-ui`・可変ウインドウの幅・iPhone Duo の開閉と回転が届いた。
+  ユーザーが Device Hub を開いているときは、**終了させない。** シミュレータも一緒に落ちる
+- **返り値ではなく、読み直して確かめる。** 成功と返して効いていない道具がある（下の「mobilebuildmcp」）。
+  `describe-ui` で値を読むか、撮って見る
+- **読み出した値を報告に書く。** 「確認しました」だけでは、その確認をした証拠にならない
+- **座標は `describe-ui` の `frame` から取る。** 撮った画像から目測するのは最後の手段
+- 1つの道具で届かなかっただけで「届かない」と言わない。別の道具でも試す
+- 数値が説明できないときは、**一時的な計測コードを入れて実測する。** 推測で定数を置かない。
+  `onGeometryChange` で `proxy.size` と `proxy.safeAreaInsets` をオーバーレイに出し、確認後に必ず外す
 
 ## 道具の選び方
 
-**⚠ が付いているものは回避策**。本来の道が壊れているので代わりに使っている。
-いつ見直すかは表の下に書いた。印の無いものは正道で、見直す必要はない。
-
 | やりたいこと | 使うもの | なぜ |
 |---|---|---|
-| タップ（縦向き） | Claude のシミュレータパネル `mcp__Claude_Code_iOS_Simulator__control` の `tap` | 確実に効く。手数が少ない |
-| タップ（横向き・確実さ優先） | ⚠ `axe touch -x -y --down --up` | パネルのタップが横向きで届かない。`axe tap` は効かない |
+| タップ | Claude のシミュレータパネル `mcp__Claude_Code_iOS_Simulator__control` の `tap`、または `axe tap -x -y` | 縦・横・iPhone Duo の内側・iPad とも届く。パネルは手数が少ない |
 | 要素の座標・ラベル | `axe describe-ui` | 座標を取る唯一の手段。画像から目測するより正確 |
-| 撮影 | ⚠ `xcrun simctl io <UDID> screenshot` | パネルの `screenshot` が `captureFailed` を返す |
+| 要素を指定して押す・まとめて押す | mobilebuildmcp の `snapshot_ui` → `tap` / `batch`（AXe の場所の指定が要る） | 座標を使わず `elementRef` で押せる（下記） |
+| 文字・キーの入力 | `axe type "<text>"` / `axe key <番号>` | 入力欄に届く（下記） |
+| キーボードショートカット | ⌘ 付きは `axe key-combo --modifiers <番号> --key <番号>`、修飾キーなしは `axe key <番号>` | どちらも `keyboardShortcut` が効く（下記） |
+| キーを直接受ける画面（`onKeyPress`） | `axe key <番号>` / `axe key-combo` | フォーカスのある view の `onKeyPress` に届く（下記） |
+| 撮影 | パネルの `screenshot`、または `xcrun simctl io <UDID> screenshot` | どちらも撮れる。ファイルに残すなら `simctl io`。iPhone Duo では `--display` が要る（下記） |
 | 回転 | `xcrun devicectl device orientation set` | `simctl` に回転が無い。Xcode 27 の正規の手段 |
 | 回転＋タップ＋階層をまとめて | Xcode MCP の `DeviceInteractionSynthesize` | 1回でスクリーンショットと hitPoint 付き階層が返る |
 | 外観・文字サイズ・コントラスト | `xcrun simctl ui` | 正規の手段 |
-| 画面の状態づくり | ⚠ アプリの UserDefaults を直接書く | UI 自動操作は取りこぼす。シートが開かない・別の項目に当たる |
-| キー入力 | ⚠ **Device Hub** で人に押してもらう | どの経路も届かない（下記） |
-| 折りたたみ端末の開閉・半開き | `duoctl open` / `close` / `half` / `hinge` | iPhone Duo 用の CLI |
-| 折りたたみ端末の内側へのタップ | `duoctl tap` / `long-press` / `swipe`（`--label` / `--id` 可） | axe・パネルのタッチは内側に届かない |
-| 可変ウインドウの幅 | ⚠ **Device Hub** で人に操作してもらう | `devicectl device appResize` が非対応で弾かれる |
-
-**Device Hub** と書いた2つだけは、GUI を前面に出して人に操作してもらう。残りは直接叩ける。
-
-回避策を見直す条件:
-
-- **横向きのタップ** — axe が上がったら `axe tap` と横向きのパネルを再試験する
-- **撮影** — パネルの `screenshot` が直ったら戻す
-- **画面の状態づくり** — 入力系が安定したら UI 操作に戻す
-- **キー入力** — axe 更新時、iOS / Xcode 更新時に試し直す
-- **可変ウインドウの幅** — `Resizable` のデバイスタイプが入ったら再試験する
-
-## 使ってはいけないもの
-
-### mobilebuildmcp の `tap` / `swipe` / `key_press`
-
-**「成功」と返しても効かない。** 返り値を信用しない。中身は同梱の `axe` を呼んでいるだけで、
-その axe が動いていないため。`snapshot_ui` / `describe-ui` が失敗するのも同じ根。
-
-### 同梱の `bundled/axe`
-
-`/usr/local/lib/node_modules/mobilebuildmcp/bundled/axe` は `describe-ui` が失敗する。
-**Homebrew 版を使う。**
-
-```bash
-brew trust --formula cameroncooke/axe/axe && brew install axe
-# → /opt/homebrew/bin/axe
-```
-
-版はどちらも 1.8.0 で同じ。brew 版だけ動くのは、`FBSimulatorControl` などのフレームワークを同梱し、
-インストール時にローカルで codesign されるため。**版を上げれば直るという話ではない。**
-
-`MOBILEBUILDMCP_AXE_PATH` に brew 版を指すと mobilebuildmcp 側も差し替えられるが、
-`axe tap` 自体が効かないので `tap` ツールは直らない。
-
-### `axe tap`
-
-効かない。`✓ Tap at (x, y) completed successfully` と返すが画面は変わらない。
-**`axe touch -x <x> -y <y> --down --up` を使う。** こちらは縦向き・横向きとも届く。
-
-## キー入力は届かない
-
-`keyboardShortcut` や `onKeyPress` の動作確認は、**この環境では自動化できない。**
-
-| 試したもの | 結果 |
-|---|---|
-| `axe key <keycode>` | 届かない |
-| `axe type "<text>"` | 届かない |
-| mobilebuildmcp `key_press` | 届かない（修飾キーも送れない） |
-| Xcode MCP `sender keyboard kbd <text>` | 届かない |
-
-入力欄にフォーカスを置いて1文字送っても入らないので、**アプリ側の実装の問題ではない。**
-シミュレータの「Simulate Hardware Keyboard」が入っていても変わらない。
-
-検証はユーザーに Device Hub 上で押してもらうか、実機にキーボードを繋いで行う。
-**未確認のままコミットするなら、その旨をコミットメッセージに書く。**
-
-## 座標の落とし穴
-
-- **`describe-ui` は画面上の全アプリの階層を返す。** 裏のアプリの座標を拾って誤タップしやすい。
-  目的のアプリに絞ってから読む
-- **横向きではパネルのタップが届かない。** `axe touch` を使う
-- **折りたたみ端末の内側ディスプレイには、axe とパネルのタッチは届かない。** `duoctl tap` を使う。
-  `describe-ui` は内側の座標空間で正しい値を返すのに、axe で注入したタッチだけが届かない
-  - `duoctl tap` も、開いた内側で `duoctl-helper: no touchscreen for display <ID>` と出て
-    失敗することがある（Duo シミュレータ iOS 27.1、2026-10-16。原因は未調査）
-  - そのときは `duoctl close` で閉じ、外側でタップして画面を進めてから開き、
-    `duoctl screenshot` で内側を確かめる。起動引数やディープリンクで開ける画面はそちらを使う
-  - **axe で届かなかっただけで「内側には届かない」と言わない。**
-- **再起動すると向きは縦に戻る。** ユーザーが回したあとに勝手に `shutdown` / `boot` をしない
-
-## Device Hub を開くしかない操作
-
-コマンドに対応が無いのは次の2つだけ。ほかは全部、直接叩ける経路がある（iPhone Duo の開閉と内側へのタップは `duoctl`）。
-
-- **キーボードの接続**（`Device > Keyboard`）**とキー入力**
-- **可変ウインドウ**（`Enter Resize Mode`）。`devicectl device appResize` は
-  `Resizable App Management` 非対応で弾かれ、名前に `Resizable` を含むディスプレイが要る。
-  そのデバイスタイプが入っていない環境では使えない
-
-いずれも人にやってもらうことになる。**画面まで自分で進めてから、押す操作だけを頼む。**
-何度も往復させない。
-
-**Device Hub を終了するとシミュレータも一緒に落ちる。** 作業中は終了させない。
-
-## 確認の作法
-
-- **返り値ではなく、撮って確かめる。** 成功と返して効いていない道具が複数ある
-- **読み出した値を報告に書く。** 「確認しました」だけでは、その確認をした証拠にならない
-- 座標は目測せず `describe-ui` の `frame` から取る。撮った画像から読むのは最後の手段
-- 数値が説明できないときは、**一時的な計測コードを入れて実測する。** 推測で定数を置かない。
-  `onGeometryChange` で `proxy.size` と `proxy.safeAreaInsets` をオーバーレイに出し、
-  確認後に必ず外す
+| 画面の状態づくり | `axe tap` で UI を操作する | メニューを開いて項目を選び、元に戻すまで取りこぼさなかった。ツールバーのメニューのボタンは `describe-ui` に出ないことがあり、その座標は撮影から読む |
+| 状態の上書き（時刻・電波など） | `xcrun simctl status_bar` | 正規の手段 |
+| 可変ウインドウの幅 | `xcrun devicectl device appResize start` / `set` | 前面のアプリの幅と高さを変えられる。iPhone だけ（下記） |
+| iPhone Duo の開閉・回転・状態・撮影 | `axe hinge set` / `axe rotate` / `axe displays` / `axe screenshot` | AXe だけで足りる（下記） |
 
 ## よく使う組み立て
 
@@ -172,11 +58,20 @@ brew trust --formula cameroncooke/axe/axe && brew install axe
 UDID=<simulator-udid>
 AXE=/opt/homebrew/bin/axe
 
+# 起動する（Device Hub は開かない）
+xcrun simctl boot $UDID
+xcrun simctl bootstatus $UDID -b
+
 # 要素の座標を取る
 $AXE describe-ui --udid $UDID
 
 # 押す
-$AXE touch -x 344 -y 255 --down --up --udid $UDID
+$AXE tap -x 344 -y 255 --udid $UDID
+
+# 打つ（入力欄にフォーカスを置いてから）
+$AXE type 'abc123' --udid $UDID
+$AXE key 42 --udid $UDID                              # バックスペース
+$AXE key-combo --modifiers 227 --key 31 --udid $UDID  # ⌘2
 
 # 撮る
 xcrun simctl io $UDID screenshot out.png
@@ -191,3 +86,164 @@ xcrun simctl ui $UDID appearance dark
 ```
 
 複数ディスプレイを持つ端末は `--display` で選ぶ。`xcrun simctl io <UDID> enumerate` で一覧が出る。
+
+## 文字・キーの入力とショートカット
+
+- 入力欄にフォーカスを置いてから送る
+- **`axe key` と `axe key-combo --key` には、キーの文字ではなく番号を渡す。** 番号はキーそのものに付いた番号で、
+  USB キーボードの規格（HID）で決まっている。文字コードとは違う（`a` は ASCII では 97、キーの番号では 4）。
+  キーの番号なので `a` と `A` は同じ 4 で、大文字は Shift（225）と一緒に押す
+
+  | キー | 番号 |
+  |---|---|
+  | a〜z | 4〜29（a が 4、b が 5 … の連番） |
+  | 1〜9、0 | 30〜38、39 |
+  | Return、Esc、Backspace、Tab、Space | 40、41、42、43、44 |
+  | →、←、↓、↑ | 79、80、81、82 |
+
+- ⌘ などは `--modifiers` に番号で渡す。Control 224、Shift 225、Option 226、Command 227。
+  例：⌘2 は `axe key-combo --modifiers 227 --key 31`
+- **`onKeyPress` が `.handled` を返すと、⌘ 付きも含めてキーはそこで止まり、`keyboardShortcut` は動かない。**
+  ショートカットを試す画面では、`onKeyPress` が `.ignored` を返すようにする
+- **キーボードが日本語入力だと、`axe type` の文字が変換されることがある。** iPad では `abc123` が `亜bc123` になった
+  （最初の文字だけが変換された）。iPhone 18 Pro では変換前の文字のまま入った。英数字を確実に入れるなら、
+  入れたあとに欄の値を `describe-ui` で読み直す
+- `axe type` はシミュレータのキーボード配列に合わせて打つ。US の配列で送るには `--layout us`
+- キーの試験は、受け取ったキーを `Text` に出す小さなアプリを作ると早い（XcodeGen でプロジェクトを作り、`simctl install` で入れる）。
+  `accessibilityIdentifier` を付けておくと、`describe-ui` で値を読める
+
+実測:
+
+| 試したもの | 結果 |
+|---|---|
+| `axe type "abc123"`（Safari のアドレス欄） | 届いた。欄の値が `abc123` |
+| `axe key 42`（バックスペース） | 届いた。`abc123` → `abc12` |
+| `axe key-combo --modifiers 227 --key 31`（⌘2） | 届いた。SwiftUI の `.keyboardShortcut("2", modifiers: .command)` を付けたボタン（タブの切り替え）が動いた |
+| `axe key 14`（k）・`axe key 44`（Space） | 届いた。`.keyboardShortcut("k", modifiers: [])` と `.keyboardShortcut(.space, modifiers: [])` を付けたボタンが動いた |
+| `axe key 4`（a）・`key 14`・`key 44`・`key-combo --modifiers 227 --key 13`（⌘J） | 届いた。フォーカスのある view の `onKeyPress` が、`press.characters` で a・k・空白・j を受け取った |
+
+## 可変ウインドウの幅
+
+`devicectl device appResize` で、**前面のアプリ**を `Resizable` という名前のディスプレイに移し、幅と高さを変える。
+
+1. アプリを前面に出す（`xcrun simctl launch <UDID> <bundle id>`）
+2. `appResize start` でセッションを始める。**止めるまで動き続ける**ので、`-t <秒>` で時間を区切るか、Ctrl+C で止める
+3. セッションのあいだに、別のコマンドで `appResize set` を打つと大きさが変わる
+4. `axe describe-ui` でアプリの `frame` が変わったかを確かめる。`--display=resizable` で撮るとリサイズした画面が写る
+5. セッションが終わると、元の大きさに戻る
+
+```bash
+xcrun simctl launch $UDID <bundle id>
+xcrun devicectl device appResize start --device $UDID --preferred-size 600x800 -t 30 &
+sleep 7
+$AXE describe-ui --udid $UDID          # アプリの frame が 600x800
+xcrun devicectl device appResize set --device $UDID --preferred-size 450x700
+xcrun simctl io $UDID screenshot --display=resizable out.png
+wait
+```
+
+- 指定できる大きさは 375×375〜1280×1280（iPhone 18 Pro）
+- 撮った画像は指定した大きさの 3 倍（600×800 → 1800×2400）
+- 前面にアプリが無いと `error 24001`（There is no foreground application to move to the resizable display）で弾かれる
+- **iPad のシミュレータでは使えない。** `This simulator's runtime does not support resizable app windows.
+  (com.apple.dt.CoreDeviceError error 1001)` で止まる（iPad Pro 11-inch (M5)、iOS 27.2）
+- **iPhone Duo は閉じた状態でだけ使える。** 開いた状態では `Resizing is not available on this device right now.` で止まる。
+  閉じた状態では動くが、大きさが指定どおりにならない（400×600 を頼んで 400×667）。`describe-ui` で読み直す
+- `simctl io <UDID> screenshot` を `--display` なしで撮ると、メインの画面を撮るのでリサイズした画面は写らない
+
+## iPhone Duo
+
+**操作はすべて AXe で足りる。** 開閉・半折り・状態の読み取り・回転・撮影・内側と外側へのタップ・長押し・スワイプ・
+アプリへのキー入力が届いた（2026-11-21）。
+
+- **開閉は `axe hinge set`。** `open`（180°）・`closed`（0°）・`tabletop`（90°）・`<0〜180 の角度>`
+- 開くと内側の画面（951×669、横向き）、閉じると外側の画面（466×678、縦向き）が出る
+- **角度は指定どおりにならない。** `tabletop` は 94.6°、`120` は 118.5° になった。エラーは出ない。
+  角度が大事なときは `axe hinge read` で読み直す
+- 今出ている画面とヒンジの角度は `axe displays` か `axe hinge read` で読む。`axe displays` では画面の大きさと向きも分かる。
+  `axe screenshot` は、内側・外側のうち今出ているほうを撮る
+- 回転は `axe rotate left` / `right`。今出ている画面の向きを変える。
+  **回したあとは 5 秒ほど待ってから向きを読む。** 2 秒では前の向きのままに読めた。
+  前面のアプリが回らないと（「設定」など）`Error: The rotation did not complete.` になる
+- **開閉・半折りのあとは、座標を読み直す。** アプリの並びが変わることがある。
+  「設定」は半折りでサイドバーの幅が 280 から 416 に広がり、前の座標で押すと隣の行に当たった
+- **撮影の `simctl io <UDID> screenshot` には `--display` が要る。** 付けないと
+  `Cannot choose between 2 displays.` で撮れない。外側は `--display=primary`（1398×2034）、
+  内側は `--display=primary-1`（開いた状態で 2853×2007）。**出ていないほうの画面を撮ると真っ黒になる。**
+  今出ている画面を撮るなら `axe screenshot` が簡単（内側・外側とも、正しい向きで撮れた）
+- **内側へのタップは、パネルの `tap` でも `axe tap` でも届く。** パネルの座標の範囲（`attach` が返す `951x669`）は
+  内側の画面と同じで、`describe-ui` の `frame` をそのまま使える。長押しは `axe tap --hold 1`、スワイプは `axe swipe`
+- **閉じても外側に切り替わらなくなることがある。** 角度は 0° なのに、内側が出たままになった。
+  そうなると、どの道具で開閉しても戻らず、`xcrun simctl shutdown` → `boot` で直った。原因は分からない
+- **`axe swipe` のあとに `Device input is quarantined` と出て、以後の入力が止まることがある。**
+  送っているあいだに画面の監視が途切れ、指が離れたかを確かめられなかったときに出る（スワイプ自体は届いていた）。
+  画面がおかしくないかを撮って確かめてから、エラー文が示す `*.quarantine.json` を消すと入力が戻る
+- **ヒンジが動かせなくなることがある。** `axe hinge read` も `hinge set` も `Error: The hinge could not be read or set.` で止まり、
+  シミュレータを起動し直しても直らなかった。原因は、前の `hinge set` が時間内に読み返せなかったときに残った
+  quarantine の記録（理由は `uncertainHingeDelivery`）で、**エラーの文には quarantine と出ない。**
+  `$TMPDIR/axe-hid-<uid>/*.quarantine.json` を開き、`simulatorUDID` がその Duo で `reason` が `uncertainHingeDelivery` なら、消すと戻る。
+  `axe displays` は、このあいだも読めた
+
+## mobilebuildmcp
+
+**AXe の場所を指定しないと、操作系のツールは「成功」と返しても効かない。** 返り値を信用しない。
+`tap` / `swipe` / `key_press` / `snapshot_ui` などは、何も指定しないと同梱の AXe
+（`/usr/local/lib/node_modules/mobilebuildmcp/bundled/axe`、2026-11-21 時点で 1.8.0）を呼ぶ。
+mobilebuildmcp は AXe を「`axePath` の設定 → 同梱版 → PATH」の順で探すので、PATH に Homebrew 版があっても同梱版が使われる。
+
+**`MOBILEBUILDMCP_AXE_PATH=/opt/homebrew/bin/axe` を指定すると届く。** AXe は Homebrew 版を入れておく。
+
+```bash
+brew trust --formula cameroncooke/axe/axe && brew install axe
+# → /opt/homebrew/bin/axe
+```
+
+MCP として使うときは、`~/.claude.json` の mobilebuildmcp の `env` に足す。
+
+```json
+"env": {
+  "MOBILEBUILDMCP_AXE_PATH": "/opt/homebrew/bin/axe"
+}
+```
+
+**足したあとは Claude アプリを起動し直す**（新しいセッションでもよい）。動いている MCP は起動したときの設定のままで、
+効いているかは `ps eww -p <pid>` に `MOBILEBUILDMCP_AXE_PATH` が出るかで分かる。
+
+- コマンドとして呼ぶときは `MOBILEBUILDMCP_AXE_PATH=/opt/homebrew/bin/axe mobilebuildmcp ui-automation <命令> --simulator-id <UDID> ...`
+- **`tap` は座標ではなく `elementRef` を指定する。** `elementRef` はその時点の `snapshot_ui` の出力のものを使い、画面が変わったら取り直す
+- 検索欄のような入力欄は `typeText` の対象としてだけ出て、`tap` の対象には入らないことがある。そのときは `axe tap` で押す
+- `snapshot_ui` は前面の画面を読む。アプリの切り替え画面が開いたままだと、それを返す。ホームに戻してから取り直す
+- コマンドの `tap` / `batch` / `swipe` のあとに「画面の読み直しが時間内に落ち着かなかった」という警告が出ることがある。操作は届いている
+
+実測（mobilebuildmcp 2.7.1。MCP は iPhone 18 Pro、コマンドは iPad Pro 11-inch (M5) と iPhone 18 Pro）:
+
+| 試したもの | 結果 |
+|---|---|
+| MCP の `snapshot_ui` | 要素の一覧と `elementRef` が返った |
+| MCP の `tap`（「設定」の「一般」） | 届いた。見出しが「一般」に変わった |
+| MCP の `key_press`（42） | 届いた。検索欄の値が1文字減った |
+| コマンドの `batch`（スイッチ2つ） | 届いた。1回で2つとも切り替わった |
+| コマンドの `swipe` | 届いた。一覧が 300pt 以上動いた |
+| コマンドの `long-press`（ホーム画面のアイコン、1500ms） | 届いた。「ホーム画面を編集」のメニューが出た |
+| コマンドの `type-text` | 届いた。ただし日本語入力のローマ字変換で `wifi` が `ウィふぃ` になった |
+
+## 座標の落とし穴
+
+- 横向きのときは、`describe-ui` の `frame` は横向きの座標（iPhone 18 Pro なら 874×402）で返り、
+  パネルの座標の範囲と一致する
+- **iPhone の「設定」アプリは横向きに回らない。** 横向きの試験は Safari など回るアプリで行う
+
+## 背景 — Device Hub と devicectl
+
+Xcode 27 で `Simulator.app` が無くなり、`Device Hub`（`<Xcode>.app/Contents/Applications/DeviceHub.app`、
+bundle id は `com.apple.dt.Devices`）に置き換わった。端末ごとの別ウインドウではなく、左に端末の一覧、
+右にその詳細という1ウインドウで、**シミュレータと実機を同じ画面で扱う。**
+
+それに合わせて、実機用の CLI だった **`devicectl` がシミュレータも扱う**ようになった。
+`simctl` に無い回転と可変ウインドウの幅が `devicectl` にあるのはこのため。
+新しく何かをしたいときは、`simctl` だけでなく `devicectl` も見る。
+
+一方で、ツールによっては対応が追いついておらず、成功と返すのに効かないものがある（上の「mobilebuildmcp」）。
+
+参考: [Michael Tsai — Xcode 27's Device Hub](https://mjtsai.com/blog/2026/06/25/xcode-27s-device-hub/) /
+[Bitrise — WWDC 2026: Device Hub and what it means for CI/CD](https://bitrise.io/blog/post/wwdc-2026-device-hub-and-what-it-means-for-ci-cd)
